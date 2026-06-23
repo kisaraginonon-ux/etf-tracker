@@ -50,3 +50,6 @@ async-trait = "0.1"
 # HTML scraping (Naver Finance)
 scraper = "0.22"
 regex = "1"
+
+# EUC-KR → UTF-8 변환 (네이버 API 응답)
+encoding_rs = "0.8"

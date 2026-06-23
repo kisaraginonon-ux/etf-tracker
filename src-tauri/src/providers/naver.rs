@@ -39,18 +39,11 @@ impl NaverProvider {
     /// 네이버 증권 페이지에서 시세 데이터 스크래핑
     async fn scrape_quote(&self, ticker: &str) -> Result<ScrapedQuote> {
         let url = format!("https://finance.naver.com/item/sise.naver?code={}", ticker);
-        let html = self.client.get(&url).send().await?
-            .text().await
-            .context("Failed to fetch Naver page")?;
-
-        // 네이버는 euc-kr 인코딩 사용 — reqwest가 자동 변환하지 못할 수 있음
-        let html = if html.contains("") {
-            // 인코딩 문제 시 iconv 처리가 필요하지만,
-            // reqwest는 보통 charset을 자동 감지함
-            html
-        } else {
-            html
-        };
+        let resp = self.client.get(&url).send().await?;
+        // 네이버는 EUC-KR 인코딩 사용 — 바이트로 받아서 수동 디코딩
+        let bytes = resp.bytes().await
+            .context("Failed to fetch Naver page bytes")?;
+        let (html, _, _) = encoding_rs::EUC_KR.decode(&bytes);
 
         let document = Html::parse_document(&html);
 
@@ -138,12 +131,19 @@ impl NaverProvider {
 
     /// 네이버 전체 ETF 목록 스크래핑
     /// 네이버 JSON API 사용 (https://finance.naver.com/api/sise/etfItemList.naver)
-    /// 한 번에 전체 ETF 목록을 JSON으로 반환 — HTML 스크래핑보다 훨씬 빠르고 안정적
+    /// 응답이 EUC-KR 인코딩이므로 UTF-8로 변환 후 JSON 파싱
     pub async fn fetch_etf_list(&self) -> Result<Vec<EtfListItem>> {
         let url = "https://finance.naver.com/api/sise/etfItemList.naver";
         let resp = self.client.get(url).send().await
             .context("Failed to fetch Naver ETF list API")?;
-        let json: serde_json::Value = resp.json().await
+
+        // 네이버 API는 EUC-KR 인코딩으로 응답 — 바이트로 받아서 수동 디코딩
+        let bytes = resp.bytes().await
+            .context("Failed to read ETF list response bytes")?;
+
+        // EUC-KR → UTF-8 변환
+        let (utf8_bytes, _, _) = encoding_rs::EUC_KR.decode(&bytes);
+        let json: serde_json::Value = serde_json::from_str(&utf8_bytes)
             .context("Failed to parse ETF list JSON")?;
 
         let items = json
@@ -156,7 +156,6 @@ impl NaverProvider {
                     let name = item.get("itemname")?.as_str()?.to_string();
                     let current_price = item.get("nowVal").and_then(|v| v.as_f64()).unwrap_or(0.0);
                     let change_pct = item.get("changeRate").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                    // risefall: 2=상승, 5=하락, 3=보합 — changeRate에 부호가 이미 있음
                     let volume = item.get("quant").and_then(|v| v.as_u64()).unwrap_or(0);
                     Some(EtfListItem {
                         ticker,
@@ -316,9 +315,10 @@ impl DataProvider for NaverProvider {
         // 코스피 200 등 지수도 동일한 페이지 구조
         // https://finance.naver.com/sise/sise_index.naver?code=KPI200
         let url = format!("https://finance.naver.com/sise/sise_index.naver?code={}", index_code);
-        let html = self.client.get(&url).send().await?
-            .text().await
-            .context("Failed to fetch Naver index page")?;
+        let resp = self.client.get(&url).send().await?;
+        let bytes = resp.bytes().await
+            .context("Failed to fetch Naver index page bytes")?;
+        let (html, _, _) = encoding_rs::EUC_KR.decode(&bytes);
 
         let document = Html::parse_document(&html);
         let current = Self::extract_text(&document, "span#now_value")
