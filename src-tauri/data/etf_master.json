@@ -1,0 +1,24 @@
+{
+  "etf_list": [
+    {"ticker": "069500", "name": "KODEX 200", "market_section": "ETF", "is_active": true},
+    {"ticker": "232080", "name": "TIGER 200", "market_section": "ETF", "is_active": true},
+    {"ticker": "102110", "name": "TIGER 코스닥150", "market_section": "ETF", "is_active": true},
+    {"ticker": "251350", "name": "KODEX 반도체", "market_section": "ETF", "is_active": true},
+    {"ticker": "305720", "name": "TIGER 2차전지 테마", "market_section": "ETF", "is_active": true},
+    {"ticker": "091170", "name": "KODEX 인버스", "market_section": "ETF", "is_active": true},
+    {"ticker": "123310", "name": "KODEX 미국S&P500", "market_section": "ETF", "is_active": true},
+    {"ticker": "278420", "name": "TIGER 미국나스닥100", "market_section": "ETF", "is_active": true},
+    {"ticker": "293820", "name": "KODEX 은행", "market_section": "ETF", "is_active": true},
+    {"ticker": "228790", "name": "TIGER 은행고배당", "market_section": "ETF", "is_active": true},
+    {"ticker": "143850", "name": "TIGER 은행Top10", "market_section": "ETF", "is_active": true},
+    {"ticker": "360750", "name": "TIGER 미국테크TOP10", "market_section": "ETF", "is_active": true},
+    {"ticker": "368580", "name": "TIGER CD금리투자(활성)", "market_section": "ETF", "is_active": true},
+    {"ticker": "453870", "name": "KODEX 미국달러SOFR", "market_section": "ETF", "is_active": true},
+    {"ticker": "458450", "name": "KODEX 은", "market_section": "ETF", "is_active": true},
+    {"ticker": "132500", "name": "KODEX 레버리지", "market_section": "ETF", "is_active": true},
+    {"ticker": "251160", "name": "KODEX 미국S&P500TR", "market_section": "ETF", "is_active": true},
+    {"ticker": "114800", "name": "KODEX 미국나스닥100TR", "market_section": "ETF", "is_active": true},
+    {"ticker": "217270", "name": "TIGER 차이나항셍테크", "market_section": "ETF", "is_active": true},
+    {"ticker": "240900", "name": "TIGER 차이나전기차", "market_section": "ETF", "is_active": true}
+  ]
+}
