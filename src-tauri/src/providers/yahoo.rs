@@ -8,7 +8,7 @@ use chrono::Utc;
 use reqwest::Client;
 use serde::Deserialize;
 
-use crate::models::{NormalizedQuote, IntradayPoint, ProviderName};
+use crate::models::{NormalizedQuote, IntradayPoint, ProviderName, PeriodReturns, PeriodReturn};
 use super::DataProvider;
 
 pub struct YahooProvider {
@@ -34,6 +34,84 @@ impl YahooProvider {
         } else {
             format!("{}.KS", ticker)
         }
+    }
+
+    /// 기간별 등락률 조회 (Yahoo Finance chart API 사용)
+    /// range=1y&interval=1d로 전체 일봉을 가져온 뒤 각 기간의 등락률 계산
+    pub async fn fetch_period_returns(&self, ticker: &str) -> Result<PeriodReturns> {
+        let yahoo_ticker = Self::to_yahoo_ticker(ticker);
+        let url = format!(
+            "https://query1.finance.yahoo.com/v8/finance/chart/{}?interval=1d&range=1y",
+            yahoo_ticker
+        );
+        let resp: YahooChartResponse = self.client.get(&url).send().await?
+            .json().await
+            .context("Failed to parse Yahoo response for period returns")?;
+        let result = resp.chart.result.into_iter().next()
+            .ok_or_else(|| anyhow::anyhow!("Yahoo returned no result for {}", ticker))?;
+        let meta = &result.meta;
+        let current_price = meta.regular_market_price;
+        let volume = meta.regular_market_volume.unwrap_or(0) as u64;
+        let name = meta.long_name.as_ref().or(meta.short_name.as_ref())
+            .map(|s| s.clone()).unwrap_or_else(|| ticker.to_string());
+
+        // 일봉 종가 배열
+        let quote_indicators = result.indicators.quote.into_iter().next().unwrap_or_default();
+        let closes: Vec<f64> = quote_indicators.close.iter()
+            .filter_map(|c| *c)
+            .collect();
+        let timestamps = &result.timestamp;
+
+        if closes.is_empty() {
+            anyhow::bail!("No historical close prices for {}", ticker);
+        }
+
+        let now = chrono::Utc::now();
+        let periods = vec![
+            ("1d", "1일", 1),
+            ("1w", "1주", 7),
+            ("1m", "1개월", 30),
+            ("3m", "3개월", 90),
+            ("6m", "6개월", 180),
+            ("1y", "1년", 365),
+        ];
+
+        let mut returns = Vec::new();
+        for (period, label, days) in periods {
+            // N일 전의 가격 찾기 (가장 가까운 거래일)
+            let target_date = now - chrono::Duration::days(days);
+            let mut start_idx = 0;
+            for (i, &ts) in timestamps.iter().enumerate() {
+                let dt = chrono::DateTime::from_timestamp(ts, 0).unwrap_or(now);
+                if dt <= target_date {
+                    start_idx = i;
+                } else {
+                    break;
+                }
+            }
+            let start_price = closes.get(start_idx).copied().unwrap_or(closes[0]);
+            let end_price = current_price;
+            let return_pct = if start_price > 0.0 {
+                ((end_price - start_price) / start_price) * 100.0
+            } else {
+                0.0
+            };
+            returns.push(PeriodReturn {
+                period: period.to_string(),
+                label: label.to_string(),
+                return_pct,
+                start_price,
+                end_price,
+            });
+        }
+
+        Ok(PeriodReturns {
+            ticker: ticker.to_string(),
+            name,
+            current_price,
+            volume,
+            returns,
+        })
     }
 }
 

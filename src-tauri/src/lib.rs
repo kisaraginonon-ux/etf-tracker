@@ -103,6 +103,7 @@ pub fn run() {
             // Naver ETF List & Manual Quote
             commands::fetch_naver_etf_list,
             commands::fetch_quote_now,
+            commands::fetch_period_returns,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ETF Tracker");

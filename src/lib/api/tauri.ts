@@ -10,6 +10,7 @@ import type {
   NormalizedQuote,
   PollingStatus,
   ProviderStatus,
+  PeriodReturns,
 } from '$lib/types';
 
 // === Calendar ===
@@ -117,4 +118,9 @@ export async function fetchNaverEtfList(): Promise<EtfListItem[]> {
 // === Manual Quote Fetch (장 마감 후에도 수동 조회) ===
 export async function fetchQuoteNow(ticker: string): Promise<NormalizedQuote> {
   return invoke<NormalizedQuote>('fetch_quote_now', { ticker });
+}
+
+// === Period Returns (기간별 등락률) ===
+export async function fetchPeriodReturns(ticker: string): Promise<PeriodReturns> {
+  return invoke<PeriodReturns>('fetch_period_returns', { ticker });
 }

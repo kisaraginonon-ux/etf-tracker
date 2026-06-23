@@ -11,7 +11,7 @@ pub use yahoo::YahooProvider;
 use async_trait::async_trait;
 use anyhow::Result;
 
-use crate::models::{NormalizedQuote, IntradayPoint, ProviderName, EtfListItem};
+use crate::models::{NormalizedQuote, IntradayPoint, ProviderName, EtfListItem, PeriodReturns};
 
 /// Provider Trait — 모든 데이터 프로바이더가 구현해야 하는 인터페이스
 #[async_trait]
@@ -144,5 +144,12 @@ impl ProviderManager {
                 Err(e)
             }
         }
+    }
+
+    /// 기간별 등락률 조회 (Yahoo Finance 우선, Naver는 미지원)
+    pub async fn fetch_period_returns(&mut self, ticker: &str) -> Result<PeriodReturns> {
+        // Yahoo Provider에 직접 접근하여 호출
+        let yahoo = crate::providers::yahoo::YahooProvider::new();
+        yahoo.fetch_period_returns(ticker).await
     }
 }

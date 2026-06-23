@@ -6,6 +6,7 @@ import type {
   EtfMasterItem,
   PollingStatus,
   MarketState,
+  PeriodReturns,
 } from '$lib/types';
 import * as api from '$lib/api/tauri';
 
@@ -292,3 +293,35 @@ export const marketStateColor = derived(marketState, ($state) => {
   };
   return colors[$state] || 'var(--text-muted)';
 });
+
+// === Selected Ticker (선택 종목 — 상세 패널용) ===
+export const selectedTicker = writable<string | null>(null);
+
+// === Period Returns (기간별 등락률) ===
+export const periodReturns = writable<PeriodReturns | null>(null);
+export const periodReturnsLoading = writable(false);
+export const periodReturnsError = writable<string | null>(null);
+
+export async function loadPeriodReturns(ticker: string) {
+  periodReturnsLoading.set(true);
+  periodReturnsError.set(null);
+  try {
+    const result = await api.fetchPeriodReturns(ticker);
+    periodReturns.set(result);
+  } catch (e) {
+    console.error('Failed to load period returns:', e);
+    periodReturnsError.set(e instanceof Error ? e.message : String(e));
+    periodReturns.set(null);
+  } finally {
+    periodReturnsLoading.set(false);
+  }
+}
+
+export function selectTicker(ticker: string | null) {
+  selectedTicker.set(ticker);
+  if (ticker) {
+    loadPeriodReturns(ticker);
+  } else {
+    periodReturns.set(null);
+  }
+}

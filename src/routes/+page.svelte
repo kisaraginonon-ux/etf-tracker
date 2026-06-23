@@ -1,17 +1,16 @@
 // ETF Tracker — Main Page
-// 토글 없이 한눈에 보이는 대시보드: MarketBar + 좌우 분할 (EtfList/Position | QuoteGrid/Alerts)
+// 좌측(35%): EtfDetailPanel (선택 종목 상세) | 우측(65%): 탭 (전체 ETF 그리드 | 가격 알림)
 
 <script lang="ts">
   import { onMount } from 'svelte';
   import '$lib/styles/theme.css';
   import MarketBar from '$lib/components/MarketBar.svelte';
-  import EtfListPanel from '$lib/components/EtfListPanel.svelte';
-  import PositionPanel from '$lib/components/PositionPanel.svelte';
+  import EtfDetailPanel from '$lib/components/EtfDetailPanel.svelte';
+  import EtfGrid from '$lib/components/EtfGrid.svelte';
   import AlertSettings from '$lib/components/AlertSettings.svelte';
-  import QuoteGrid from '$lib/components/QuoteGrid.svelte';
   import ProviderBanner from '$lib/components/ProviderBanner.svelte';
   import DisclaimerModal from '$lib/components/DisclaimerModal.svelte';
-  import { favorites, loadFavorites, loadPositions, loadAlerts, refreshMarketState, refreshPollingStatus, refreshProviderStatus, exportCsvAction } from '$lib/stores';
+  import { favorites, loadFavorites, loadPositions, loadAlerts, refreshMarketState, refreshPollingStatus, refreshProviderStatus, loadEtfList, etfList, exportCsvAction } from '$lib/stores';
   import { loadThemeSettings } from '$lib/stores/theme';
   import { save } from '@tauri-apps/plugin-dialog';
 
@@ -26,6 +25,9 @@
     refreshMarketState();
     refreshPollingStatus();
     refreshProviderStatus();
+    if ($etfList.length === 0) {
+      loadEtfList();
+    }
   });
 
   async function handleExportCsv() {
@@ -84,17 +86,16 @@
     </div>
 
     <div class="split-layout">
-      <!-- 좌측 (40%): ETF 전체 목록 + 가상 포지션 -->
+      <!-- 좌측 (35%): 선택 종목 상세 패널 -->
       <section class="left-pane">
-        <EtfListPanel />
-        <PositionPanel />
+        <EtfDetailPanel />
       </section>
 
-      <!-- 우측 (60%): 시세 그리드 + 알림 설정 (탭) -->
+      <!-- 우측 (65%): 전체 ETF 그리드 / 가격 알림 (탭) -->
       <section class="right-pane">
         <div class="tab-bar">
           <button class="tab-btn" class:active={rightTab === 'quotes'} onclick={() => rightTab = 'quotes'}>
-            📈 시세 그리드
+            📈 전체 ETF 그리드
           </button>
           <button class="tab-btn" class:active={rightTab === 'alerts'} onclick={() => rightTab = 'alerts'}>
             🔔 가격 알림
@@ -102,7 +103,7 @@
         </div>
         <div class="tab-content">
           {#if rightTab === 'quotes'}
-            <QuoteGrid favorites={$favorites} />
+            <EtfGrid />
           {:else}
             <AlertSettings />
           {/if}
@@ -177,15 +178,14 @@
     overflow: hidden;
   }
   .left-pane {
-    width: 40%;
+    width: 35%;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    overflow-y: auto;
+    overflow: hidden;
     padding-right: 4px;
   }
   .right-pane {
-    width: 60%;
+    width: 65%;
     display: flex;
     flex-direction: column;
     overflow: hidden;

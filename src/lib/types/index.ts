@@ -82,6 +82,22 @@ export interface EtfListItem {
   volume: number;
 }
 
+export interface PeriodReturn {
+  period: string;
+  label: string;
+  return_pct: number;
+  start_price: number;
+  end_price: number;
+}
+
+export interface PeriodReturns {
+  ticker: string;
+  name: string;
+  current_price: number;
+  volume: number;
+  returns: PeriodReturn[];
+}
+
 export interface QuoteRow {
   ticker: string;
   name: string;

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::calendar::{MarketCalendar, MarketState};
 use crate::db::Database;
-use crate::models::{EtfMasterItem, EtfListItem, Favorite, NormalizedQuote};
+use crate::models::{EtfMasterItem, EtfListItem, Favorite, NormalizedQuote, PeriodReturns};
 use crate::providers::{NaverProvider, YahooProvider, ProviderManager};
 
 /// ETF 마스터 JSON 로드
@@ -432,6 +432,18 @@ pub async fn fetch_quote_now(
 ) -> Result<NormalizedQuote, String> {
     let mut mgr = provider_mgr.lock().await;
     mgr.fetch_quote(&ticker)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// 기간별 등락률 조회 (1일/1주/1개월/3개월/6개월/1년)
+#[tauri::command]
+pub async fn fetch_period_returns(
+    provider_mgr: State<'_, tokio::sync::Mutex<ProviderManager>>,
+    ticker: String,
+) -> Result<PeriodReturns, String> {
+    let mut mgr = provider_mgr.lock().await;
+    mgr.fetch_period_returns(&ticker)
         .await
         .map_err(|e| e.to_string())
 }

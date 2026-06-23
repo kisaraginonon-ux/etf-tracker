@@ -73,6 +73,26 @@ pub struct EtfListItem {
     pub volume: u64,          // 거래량
 }
 
+/// 기간별 등락률
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PeriodReturn {
+    pub period: String,       // "1d", "1w", "1m", "3m", "6m", "1y"
+    pub label: String,        // "1일", "1주", "1개월", "3개월", "6개월", "1년"
+    pub return_pct: f64,      // 등락률 (%)
+    pub start_price: f64,     // 시작가
+    pub end_price: f64,       // 종료가
+}
+
+/// 기간별 등락률 응답
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PeriodReturns {
+    pub ticker: String,
+    pub name: String,
+    pub current_price: f64,
+    pub volume: u64,
+    pub returns: Vec<PeriodReturn>,
+}
+
 /// 모멘텀 시그널
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MomentumSignal {
