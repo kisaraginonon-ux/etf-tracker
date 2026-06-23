@@ -9,6 +9,7 @@
     periodReturnsError,
     positions,
     setPositionAction,
+    removePositionAction,
     selectTicker,
     etfList,
     manualQuotes,
@@ -74,6 +75,12 @@
 
   function onClearSelection() {
     selectTicker(null);
+  }
+
+  async function onDeletePosition() {
+    if ($selectedTicker === null) return;
+    await removePositionAction($selectedTicker);
+    saveStatus = 'idle';
   }
 
   function formatPrice(n: number): string {
@@ -383,21 +390,32 @@
             </span>
           </div>
         </div>
-        <button
-          class="save-btn"
-          onclick={onSavePosition}
-          disabled={saving}
-        >
-          {#if saving}
-            저장 중...
-          {:else if saveStatus === 'done'}
-            ✅ 저장 완료
-          {:else if saveStatus === 'error'}
-            ❌ 저장 실패
-          {:else}
-            💾 포지션 저장
+        <div class="button-row">
+          <button
+            class="save-btn"
+            onclick={onSavePosition}
+            disabled={saving}
+          >
+            {#if saving}
+              저장 중...
+            {:else if saveStatus === 'done'}
+              ✅ 저장 완료
+            {:else if saveStatus === 'error'}
+              ❌ 저장 실패
+            {:else}
+              💾 포지션 저장
+            {/if}
+          </button>
+          {#if currentPos !== undefined}
+            <button
+              class="delete-btn"
+              onclick={onDeletePosition}
+              title="포지션 삭제"
+            >
+              🗑️ 삭제
+            </button>
           {/if}
-        </button>
+        </div>
       </div>
     </section>
   {/if}
@@ -637,6 +655,25 @@
   .save-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+  .button-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .delete-btn {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: calc(0.88rem * var(--font-scale));
+    font-weight: 500;
+  }
+  .delete-btn:hover {
+    background: var(--remove-hover-bg);
+    border-color: var(--danger);
   }
 
   /* === 포트폴리오 요약 뷰 === */

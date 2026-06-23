@@ -3,7 +3,7 @@
 // 행 클릭 → selectTicker (좌측 상세 패널로 전환)
 
 <script lang="ts">
-  import { positions, etfList, manualQuotes, selectTicker } from '$lib/stores';
+  import { positions, etfList, manualQuotes, selectTicker, removePositionAction } from '$lib/stores';
   import type { VirtualPosition, EtfListItem, NormalizedQuote } from '$lib/types';
 
   // 현재가 조회: manualQuotes 우선, etfList에서 찾기 차선
@@ -115,6 +115,11 @@
   function onRowClick(ticker: string) {
     selectTicker(ticker);
   }
+
+  async function onDeletePosition(ticker: string, e: Event) {
+    e.stopPropagation();
+    await removePositionAction(ticker);
+  }
 </script>
 
 <div class="position-summary">
@@ -136,6 +141,7 @@
             <th class="num-col">현재가</th>
             <th class="num-col">평가손익</th>
             <th class="num-col">수익률</th>
+            <th class="action-col">삭제</th>
           </tr>
         </thead>
         <tbody>
@@ -155,6 +161,13 @@
               </td>
               <td class="num-cell" style="color: {colorForChange(row.eval_pct)}; font-weight: 600;">
                 {formatPct(row.eval_pct)}
+              </td>
+              <td class="action-cell">
+                <button
+                  class="btn-delete"
+                  onclick={(e) => onDeletePosition(row.ticker, e)}
+                  title="포지션 삭제"
+                >✕</button>
               </td>
             </tr>
           {/each}
@@ -249,6 +262,7 @@
   }
   th.num-col { text-align: right; }
   th.date-col { min-width: 90px; }
+  th.action-col { width: 40px; text-align: center; }
   td {
     padding: 7px 10px;
     border-bottom: 1px solid var(--border-soft);
@@ -272,6 +286,22 @@
   }
   .pos-row:hover {
     background: var(--row-hover);
+  }
+  .action-cell {
+    text-align: center;
+  }
+  .btn-delete {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: calc(0.9rem * var(--font-scale));
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .btn-delete:hover {
+    color: var(--danger);
+    background: var(--remove-hover-bg);
   }
   .summary-bar {
     display: grid;

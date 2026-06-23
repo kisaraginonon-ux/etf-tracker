@@ -218,16 +218,16 @@ impl NaverProvider {
                 let current_price = Self::json_f64(item, &["nowVal", "nowValue", "nav"]);
                 let change_pct = Self::json_f64(item, &["changeRate", "fluctuationsRatio", "rate"]);
                 let volume = Self::json_u64(item, &["quant", "accumulatedTradingVolume", "volume"]);
-                // 전일종가: 네이버 JSON API의 "prevVal" 또는 유사 필드
-                let prev_close = Self::json_f64(item, &["prevVal", "prevValue", "prevClose"]);
-                // 등락액: 현재가 - 전일종가 (API에 "changeAmount" 등이 있을 수 있지만 계산이 안전)
-                let change_amount = if current_price > 0.0 && prev_close > 0.0 {
-                    current_price - prev_close
+                // 등락액: 네이버 JSON API의 "changeVal" 필드
+                let change_amount = Self::json_f64(item, &["changeVal", "changeAmount", "changeAmt", "diff"]);
+                // 전일종가: 현재가 - 등락액으로 계산 (API에 prevVal 필드 없음)
+                let prev_close = if current_price > 0.0 && change_amount != 0.0 {
+                    current_price - change_amount
                 } else {
-                    Self::json_f64(item, &["changeAmount", "changeAmt", "diff"])
+                    Self::json_f64(item, &["prevVal", "prevValue", "prevClose"])
                 };
-                // 거래대금: 네이버 JSON API의 "valueTr", "amountTr" 등
-                let trading_value = Self::json_u64(item, &["valueTr", "amountTr", "tradingValue", "trValue"]);
+                // 거래대금: 네이버 JSON API의 "amonut" 필드 (오타지만 실제 API 스펙)
+                let trading_value = Self::json_u64(item, &["amonut", "amountTr", "valueTr", "tradingValue", "trValue"]);
                 Some(EtfListItem {
                     ticker,
                     name,
