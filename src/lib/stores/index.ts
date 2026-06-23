@@ -234,14 +234,17 @@ export async function refreshProviderStatus() {
 // === Naver ETF List (전체 ETF 목록 스크래핑) ===
 export const etfList = writable<EtfListItem[]>([]);
 export const etfListLoading = writable(false);
+export const etfListError = writable<string | null>(null);
 
 export async function loadEtfList() {
   etfListLoading.set(true);
+  etfListError.set(null);
   try {
     const result = await api.fetchNaverEtfList();
     etfList.set(result);
   } catch (e) {
     console.error('Failed to load ETF list:', e);
+    etfListError.set(e instanceof Error ? e.message : String(e));
     etfList.set([]);
   } finally {
     etfListLoading.set(false);

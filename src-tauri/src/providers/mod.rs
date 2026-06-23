@@ -134,15 +134,14 @@ impl ProviderManager {
 
     /// 네이버 전체 ETF 목록 스크래핑 (Primary Provider 위임)
     /// NaverProvider의 fetch_etf_list를 호출. Fallback(Yahoo)은 ETF 목록 기능이 없으므로
-    /// Primary가 Naver일 때만 정상 동작하며, 실패 시 빈 벡터 반환.
+    /// Primary가 Naver일 때만 정상 동작하며, 실패 시 호출자에게 에러를 전달한다.
     pub async fn fetch_etf_list(&mut self) -> Result<Vec<EtfListItem>> {
         // Primary가 Naver인 경우에만 시도 — fallback 전환 중에도 primary로 시도
         match self.primary.fetch_etf_list().await {
             Ok(items) => Ok(items),
             Err(e) => {
                 tracing::warn!("Primary fetch_etf_list failed: {}", e);
-                // Fallback은 ETF 목록 스크래핑을 지원하지 않으므로 빈 벡터 반환
-                Ok(Vec::new())
+                Err(e)
             }
         }
     }

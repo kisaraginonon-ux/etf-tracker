@@ -416,9 +416,9 @@ pub async fn fetch_naver_etf_list(
     match mgr.fetch_etf_list().await {
         Ok(items) => Ok(items),
         Err(e) => {
-            tracing::warn!("fetch_naver_etf_list failed: {}", e);
-            // 실패 시 빈 벡터 반환 (에러 메시지와 함께)
-            Ok(Vec::new())
+            let message = format!("fetch_naver_etf_list failed: {:#}", e);
+            tracing::error!("{}", message);
+            Err(message)
         }
     }
 }

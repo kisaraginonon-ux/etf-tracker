@@ -31,9 +31,42 @@ impl NaverProvider {
     fn parse_num(s: &str) -> f64 {
         s.replace(',', "")
             .replace("&nbsp;", "")
+            .replace('%', "")
             .trim()
             .parse()
             .unwrap_or(0.0)
+    }
+
+    fn json_string<'a>(item: &'a serde_json::Value, keys: &[&str]) -> Option<&'a str> {
+        keys.iter()
+            .find_map(|key| item.get(*key).and_then(|value| value.as_str()))
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    }
+
+    fn json_f64(item: &serde_json::Value, keys: &[&str]) -> f64 {
+        keys.iter()
+            .find_map(|key| {
+                let value = item.get(*key)?;
+                value
+                    .as_f64()
+                    .or_else(|| value.as_str().map(Self::parse_signed_num))
+            })
+            .unwrap_or(0.0)
+    }
+
+    fn json_u64(item: &serde_json::Value, keys: &[&str]) -> u64 {
+        keys.iter()
+            .find_map(|key| {
+                let value = item.get(*key)?;
+                value.as_u64().or_else(|| {
+                    value
+                        .as_str()
+                        .map(Self::parse_num)
+                        .map(|parsed| parsed.max(0.0) as u64)
+                })
+            })
+            .unwrap_or(0)
     }
 
     /// 네이버 증권 페이지에서 시세 데이터 스크래핑
@@ -134,39 +167,80 @@ impl NaverProvider {
     /// 응답이 EUC-KR 인코딩이므로 UTF-8로 변환 후 JSON 파싱
     pub async fn fetch_etf_list(&self) -> Result<Vec<EtfListItem>> {
         let url = "https://finance.naver.com/api/sise/etfItemList.naver";
+        tracing::info!("Fetching Naver ETF list from {}", url);
+
         let resp = self.client.get(url).send().await
             .context("Failed to fetch Naver ETF list API")?;
+        let status = resp.status();
+        tracing::info!("Naver ETF list API status: {}", status);
+        let resp = resp
+            .error_for_status()
+            .context("Naver ETF list API returned an error status")?;
 
         // 네이버 API는 EUC-KR 인코딩으로 응답 — 바이트로 받아서 수동 디코딩
         let bytes = resp.bytes().await
             .context("Failed to read ETF list response bytes")?;
+        tracing::debug!("Naver ETF list response bytes: {}", bytes.len());
 
         // EUC-KR → UTF-8 변환
-        let (utf8_bytes, _, _) = encoding_rs::EUC_KR.decode(&bytes);
-        let json: serde_json::Value = serde_json::from_str(&utf8_bytes)
-            .context("Failed to parse ETF list JSON")?;
+        let (decoded, _, had_errors) = encoding_rs::EUC_KR.decode(&bytes);
+        if had_errors {
+            tracing::warn!("Naver ETF list EUC-KR decoding used replacement characters");
+        }
+        tracing::debug!(
+            "Naver ETF list decoded preview: {}",
+            decoded.chars().take(300).collect::<String>()
+        );
 
-        let items = json
+        let json: serde_json::Value = serde_json::from_str(&decoded)
+            .with_context(|| {
+                let preview = decoded.chars().take(300).collect::<String>();
+                format!("Failed to parse ETF list JSON. Decoded preview: {}", preview)
+            })?;
+
+        let list = json
             .get("result")
             .and_then(|r| r.get("etfItemList"))
             .and_then(|l| l.as_array())
-            .map(|arr| {
-                arr.iter().filter_map(|item| {
-                    let ticker = item.get("itemcode")?.as_str()?.to_string();
-                    let name = item.get("itemname")?.as_str()?.to_string();
-                    let current_price = item.get("nowVal").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                    let change_pct = item.get("changeRate").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                    let volume = item.get("quant").and_then(|v| v.as_u64()).unwrap_or(0);
-                    Some(EtfListItem {
-                        ticker,
-                        name,
-                        current_price,
-                        change_pct,
-                        volume,
-                    })
-                }).collect()
+            .ok_or_else(|| {
+                let keys = json
+                    .as_object()
+                    .map(|obj| obj.keys().cloned().collect::<Vec<_>>().join(", "))
+                    .unwrap_or_else(|| json.to_string().chars().take(120).collect());
+                anyhow::anyhow!("Naver ETF list JSON missing result.etfItemList. Top-level keys/value: {}", keys)
+            })?;
+
+        let items: Vec<EtfListItem> = list
+            .iter()
+            .filter_map(|item| {
+                let ticker = Self::json_string(item, &["itemcode", "itemCode", "code"])?.to_string();
+                let name = Self::json_string(item, &["itemname", "itemName", "name"])?.to_string();
+                let current_price = Self::json_f64(item, &["nowVal", "nowValue", "nav"]);
+                let change_pct = Self::json_f64(item, &["changeRate", "fluctuationsRatio", "rate"]);
+                let volume = Self::json_u64(item, &["quant", "accumulatedTradingVolume", "volume"]);
+                Some(EtfListItem {
+                    ticker,
+                    name,
+                    current_price,
+                    change_pct,
+                    volume,
+                })
             })
-            .unwrap_or_default();
+            .collect();
+
+        if items.is_empty() && !list.is_empty() {
+            let sample = list
+                .first()
+                .map(|item| item.to_string().chars().take(300).collect::<String>())
+                .unwrap_or_default();
+            anyhow::bail!(
+                "Naver ETF list JSON contained {} rows, but none matched expected fields. First row: {}",
+                list.len(),
+                sample
+            );
+        }
+
+        tracing::info!("Parsed {} Naver ETF list items", items.len());
 
         Ok(items)
     }
@@ -347,6 +421,10 @@ impl DataProvider for NaverProvider {
     async fn fetch_intraday(&self, _ticker: &str) -> Result<Vec<IntradayPoint>> {
         // TODO: 네이버 장중 시간대별 데이터 (P1)
         Ok(Vec::new())
+    }
+
+    async fn fetch_etf_list(&self) -> Result<Vec<EtfListItem>> {
+        NaverProvider::fetch_etf_list(self).await
     }
 
     async fn health_check(&self) -> Result<bool> {

@@ -5,6 +5,7 @@
   import { onMount } from 'svelte';
   import {
     etfList,
+    etfListError,
     etfListLoading,
     loadEtfList,
     favorites,
@@ -91,6 +92,11 @@
   {#if $etfListLoading && $etfList.length === 0}
     <div class="loading-state">
       <p>⏳ ETF 목록을 불러오는 중...</p>
+    </div>
+  {:else if $etfListError}
+    <div class="error-state">
+      <p>ETF 목록을 불러오지 못했습니다.</p>
+      <p class="error-message">{$etfListError}</p>
     </div>
   {:else if filteredList.length === 0}
     <div class="empty-state">
@@ -191,11 +197,21 @@
     outline: none;
   }
   .loading-state,
-  .empty-state {
+  .empty-state,
+  .error-state {
     text-align: center;
     padding: 24px 12px;
     color: var(--text-dim);
     font-size: calc(0.88rem * var(--font-scale));
+  }
+  .error-state {
+    color: var(--danger);
+  }
+  .error-message {
+    color: var(--text-muted);
+    font-size: calc(0.78rem * var(--font-scale));
+    margin-top: 6px;
+    overflow-wrap: anywhere;
   }
   .empty-state .hint {
     font-size: calc(0.8rem * var(--font-scale));
