@@ -55,14 +55,21 @@ impl YahooProvider {
         let name = meta.long_name.as_ref().or(meta.short_name.as_ref())
             .map(|s| s.clone()).unwrap_or_else(|| ticker.to_string());
 
-        // 일봉 종가 배열
+        // 일봉 종가 배열 — timestamp와 close를 쌍으로 묶어 None을 건너뛰지 않고
+        // 인덱스를 일치시킨 후 유효한 (timestamp, close) 쌍만 추출
         let quote_indicators = result.indicators.quote.into_iter().next().unwrap_or_default();
-        let closes: Vec<f64> = quote_indicators.close.iter()
-            .filter_map(|c| *c)
-            .collect();
-        let timestamps = &result.timestamp;
+        let timestamps = result.timestamp;
 
-        if closes.is_empty() {
+        // timestamp[i]와 close[i]를 쌍으로 묶어 유효한 것만 추출
+        let ts_closes: Vec<(i64, f64)> = timestamps.iter()
+            .enumerate()
+            .filter_map(|(i, &ts)| {
+                let close = quote_indicators.close.get(i).and_then(|c| *c)?;
+                Some((ts, close))
+            })
+            .collect();
+
+        if ts_closes.is_empty() {
             anyhow::bail!("No historical close prices for {}", ticker);
         }
 
@@ -80,16 +87,15 @@ impl YahooProvider {
         for (period, label, days) in periods {
             // N일 전의 가격 찾기 (가장 가까운 거래일)
             let target_date = now - chrono::Duration::days(days);
-            let mut start_idx = 0;
-            for (i, &ts) in timestamps.iter().enumerate() {
+            let mut start_price = ts_closes[0].1;
+            for &(ts, close) in &ts_closes {
                 let dt = chrono::DateTime::from_timestamp(ts, 0).unwrap_or(now);
                 if dt <= target_date {
-                    start_idx = i;
+                    start_price = close;
                 } else {
                     break;
                 }
             }
-            let start_price = closes.get(start_idx).copied().unwrap_or(closes[0]);
             let end_price = current_price;
             let return_pct = if start_price > 0.0 {
                 ((end_price - start_price) / start_price) * 100.0

@@ -2,14 +2,13 @@
 // etfList 기반, 즐겨찾기 상단 고정, 정렬, 필터, 행 클릭→선택, ★ 즐겨찾기 토글
 
 <script lang="ts">
-  import { etfList, etfListLoading, etfListError, loadEtfList, favorites, addFavoriteAction, removeFavoriteAction, selectTicker, selectedTicker, manualQuotes, fetchQuoteNowAction } from '$lib/stores';
+  import { etfList, etfListLoading, etfListError, loadEtfList, favorites, addFavoriteAction, removeFavoriteAction, selectTicker, selectedTicker } from '$lib/stores';
   import type { EtfListItem, Favorite } from '$lib/types';
 
   let filterText = $state('');
   let sortKey = $state<'name' | 'current_price' | 'change_pct' | 'volume'>('name');
   let sortAsc = $state(true);
   let favoriteFirst = $state(true);
-  let fetchingAll = $state(false);
 
   let favoriteTickers = $derived(new Set($favorites.map((f: Favorite) => f.ticker)));
 
@@ -26,23 +25,16 @@
         );
       }
 
-      // 정렬
+      // 단일 comparator: 즐겨찾기 우선 → sortKey
       let sorted = [...list];
-      if (favoriteFirst) {
-        sorted.sort((a, b) => {
+      sorted.sort((a: EtfListItem, b: EtfListItem) => {
+        // 1순위: 즐겨찾기 상단 고정
+        if (favoriteFirst) {
           const aFav = favoriteTickers.has(a.ticker) ? 0 : 1;
           const bFav = favoriteTickers.has(b.ticker) ? 0 : 1;
           if (aFav !== bFav) return aFav - bFav;
-          return 0;
-        });
-      }
-      sorted.sort((a: EtfListItem, b: EtfListItem) => {
-        // 즐겨찾기 우선이면 동일 그룹 내에서만 정렬
-        if (favoriteFirst) {
-          const aFav = favoriteTickers.has(a.ticker);
-          const bFav = favoriteTickers.has(b.ticker);
-          if (aFav !== bFav) return 0; // 이미 그룹 분리됨
         }
+        // 2순위: 선택된 정렬키
         const av: string | number = a[sortKey];
         const bv: string | number = b[sortKey];
         if (typeof av === 'string' && typeof bv === 'string') {
@@ -85,21 +77,6 @@
 
   async function onRefresh() {
     await loadEtfList();
-  }
-
-  async function onFetchAll() {
-    fetchingAll = true;
-    try {
-      const tickers = $favorites.map((f: Favorite) => f.ticker);
-      // 순차 조회 (백엔드 부하 방지)
-      for (const t of tickers) {
-        await fetchQuoteNowAction(t);
-      }
-    } catch (e) {
-      console.error('전체 조회 실패:', e);
-    } finally {
-      fetchingAll = false;
-    }
   }
 
   function formatPrice(n: number): string {
@@ -153,9 +130,6 @@
       </button>
     </div>
     <div class="action-controls">
-      <button class="fetch-all-btn" onclick={onFetchAll} disabled={fetchingAll || $favorites.length === 0} title="즐겨찾기 전체 시세 조회">
-        {#if fetchingAll}⏳ 조회 중...{:else}⚡ 전체 조회{/if}
-      </button>
       <button class="refresh-btn" onclick={onRefresh} disabled={$etfListLoading} title="ETF 목록 새로고침">
         {#if $etfListLoading}🔄 불러오는 중...{:else}🔄 새로고침{/if}
       </button>
@@ -301,23 +275,6 @@
     display: flex;
     gap: 6px;
   }
-  .fetch-all-btn {
-    background: var(--accent);
-    color: var(--text);
-    border: none;
-    border-radius: 6px;
-    padding: 5px 14px;
-    cursor: pointer;
-    font-size: calc(0.82rem * var(--font-scale));
-    font-weight: 600;
-  }
-  .fetch-all-btn:hover:not(:disabled) {
-    background: var(--accent-hover);
-  }
-  .fetch-all-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
   .refresh-btn {
     background: var(--surface-3);
     color: var(--text-secondary);
@@ -447,5 +404,6 @@
     color: var(--text-muted);
   }
   .count-info {
+    display: inline;
   }
 </style>

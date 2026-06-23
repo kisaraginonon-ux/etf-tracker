@@ -53,6 +53,8 @@ pub struct ProviderManager {
     field_failures: u32,
     using_fallback: bool,
     last_primary_retry: Option<chrono::DateTime<chrono::Utc>>,
+    /// 기간별 등락률 전용 Yahoo 인스턴스 (재사용)
+    yahoo_for_returns: YahooProvider,
 }
 
 impl ProviderManager {
@@ -64,6 +66,7 @@ impl ProviderManager {
             field_failures: 0,
             using_fallback: false,
             last_primary_retry: None,
+            yahoo_for_returns: YahooProvider::new(),
         }
     }
 
@@ -146,10 +149,8 @@ impl ProviderManager {
         }
     }
 
-    /// 기간별 등락률 조회 (Yahoo Finance 우선, Naver는 미지원)
+    /// 기간별 등락률 조회 (Yahoo Finance, 인스턴스 재사용)
     pub async fn fetch_period_returns(&mut self, ticker: &str) -> Result<PeriodReturns> {
-        // Yahoo Provider에 직접 접근하여 호출
-        let yahoo = crate::providers::yahoo::YahooProvider::new();
-        yahoo.fetch_period_returns(ticker).await
+        self.yahoo_for_returns.fetch_period_returns(ticker).await
     }
 }

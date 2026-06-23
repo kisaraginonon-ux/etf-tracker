@@ -139,6 +139,38 @@
 
 ## P1 — 사용성 및 분석 강화 (후속)
 
+### UI 대개편 완료 사항 (2026-06-23)
+
+> **구조 변경**: 좌측 ETF 전체목록 + 우측 시세그리드 → 좌측 선택 종목 상세 + 우측 전체 ETF 그리드
+
+- [x] **UI-R1** EtfGrid.svelte — 전체 ETF 목록 그리드 (네이버 JSON API 기반)
+  - 검색 필터, 즐겨찾기 상단 고정, 정렬(종목명/현재가/등락률/거래량), ★ 즐겨찾기 토글
+  - 행 클릭 → 선택 (selectedTicker), 단일 comparator 정렬
+- [x] **UI-R2** EtfDetailPanel.svelte — 선택 종목 상세 패널
+  - 기간별 등락률 (1일/1주/1개월/3개월/6개월/1년, Yahoo Finance chart API)
+  - 현재가/거래량 요약, 가상 포지션 입력 + 평가손익/수익률
+- [x] **UI-R3** 백엔드 `fetch_period_returns` API 추가
+  - `PeriodReturns` / `PeriodReturn` 모델, Yahoo 1년 일봉으로 기간별 등락률 계산
+  - `ProviderManager.yahoo_for_returns` 인스턴스 재사용
+- [x] **UI-R4** 삭제: EtfListPanel.svelte, PositionPanel.svelte, QuoteGrid.svelte
+- [x] **UI-R5** Codex 점검 반영
+  - Yahoo timestamp/close index 불일치 버그 수정 (쌍(pair) 기반 추출)
+  - "전체 조회" 잔존 버튼 제거, 미사용 import/CSS 정리
+
+### P1 남은 항목
+
+- [ ] 장중 자동 새로고침 (ETF 목록 1~3분 간격 폴링)
+  - 현재 onMount 1회만 로드, `manual_refresh`도 TODO 상태
+  - MarketCalendar 기반 정규장 중에만 자동 폴링
+- [ ] 전체 포지션 요약 뷰 (총 평가손익, 총 수익률)
+  - 현재 선택 종목 단건만 표시 → 포트폴리오 전체 요약 필요
+- [ ] 네이버 일봉 차트 API fallback (기간별 등락률)
+  - 현재 Yahoo Finance에만 의존 → Yahoo 장애 시 기간별 등락률 미출력
+  - 네이버 `sise.naver` 일봉 HTML 또는 JSON API 조사 필요
+- [ ] ETF 카테고리 필터 (주식/채권/원자재/혼합 등)
+  - 600+ ETF를 검색으로만 찾기 어려움, 자산군별 탭/필터 필요
+- [ ] 접근성 개선 (svelte-check 경고 9건 해결)
+  - AlertSettings, DisclaimerModal의 클릭 가능 span/div → button/role 부여
 - [ ] 장중 스파크라인 (uPlot) (REQ-F-06)
 - [ ] 일봉 선형 차트
 - [ ] 모멘텀 시그널 (대체 지표, 저유동성 1억 예외) (REQ-F-09)
