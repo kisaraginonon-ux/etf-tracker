@@ -1,9 +1,13 @@
 // EtfGrid — 전체 ETF 목록 그리드
 // etfList 기반, 즐겨찾기 상단 고정, 정렬, 필터, 행 클릭→선택, ★ 즐겨찾기 토글
+// 기능 1: 장중 자동 새로고침 (regular 상태 시 2분 간격)
+// 기능 5: 컬럼 선택 기능 (⚙️ 버튼 → 드롭다운 토글, localStorage 저장)
+// 기능 6: 포지션 입력 종목 하이라이트
 
 <script lang="ts">
-  import { etfList, etfListLoading, etfListError, loadEtfList, favorites, addFavoriteAction, removeFavoriteAction, selectTicker, selectedTicker } from '$lib/stores';
-  import type { EtfListItem, Favorite } from '$lib/types';
+  import { onMount, onDestroy } from 'svelte';
+  import { etfList, etfListLoading, etfListError, loadEtfList, favorites, addFavoriteAction, removeFavoriteAction, selectTicker, selectedTicker, positions, marketState } from '$lib/stores';
+  import type { EtfListItem, Favorite, VirtualPosition } from '$lib/types';
 
   let filterText = $state('');
   let sortKey = $state<'name' | 'current_price' | 'change_pct' | 'volume'>('name');
@@ -11,6 +15,84 @@
   let favoriteFirst = $state(true);
 
   let favoriteTickers = $derived(new Set($favorites.map((f: Favorite) => f.ticker)));
+  let positionTickers = $derived(new Set($positions.map((p: VirtualPosition) => p.ticker)));
+
+  // === 컬럼 선택 기능 (기능 5) ===
+  type ColumnKey = 'trading_value' | 'prev_close' | 'change_amount';
+  const STORAGE_KEY = 'etf-grid-columns';
+
+  // localStorage에서 복원
+  function loadColumnPrefs(): Record<ColumnKey, boolean> {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw !== null) {
+        const parsed = JSON.parse(raw) as Record<string, boolean>;
+        return {
+          trading_value: parsed.trading_value === true,
+          prev_close: parsed.prev_close === true,
+          change_amount: parsed.change_amount === true,
+        };
+      }
+    } catch (e) {
+      console.error('Failed to load column prefs:', e);
+    }
+    return { trading_value: false, prev_close: false, change_amount: false };
+  }
+
+  let columnPrefs = $state<Record<ColumnKey, boolean>>(loadColumnPrefs());
+  let showColumnMenu = $state(false);
+
+  function toggleColumn(key: ColumnKey) {
+    columnPrefs[key] = !columnPrefs[key];
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(columnPrefs));
+    } catch (e) {
+      console.error('Failed to save column prefs:', e);
+    }
+  }
+
+  function toggleColumnMenu() {
+    showColumnMenu = !showColumnMenu;
+  }
+
+  // 외부 클릭 시 드롭다운 닫기
+  function handleDocClick(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (target.closest('.column-menu-wrap') === null && showColumnMenu) {
+      showColumnMenu = false;
+    }
+  }
+
+  // === 장중 자동 새로고침 (기능 1) ===
+  let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
+  const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000; // 2분
+
+  function startAutoRefresh() {
+    if (autoRefreshTimer !== null) return;
+    autoRefreshTimer = setInterval(() => {
+      if ($marketState === 'regular') {
+        loadEtfList();
+      }
+    }, AUTO_REFRESH_INTERVAL);
+  }
+
+  function stopAutoRefresh() {
+    if (autoRefreshTimer !== null) {
+      clearInterval(autoRefreshTimer);
+      autoRefreshTimer = null;
+    }
+  }
+
+  onMount(() => {
+    // 최초 1회 로드는 +page.svelte에서 수행
+    document.addEventListener('click', handleDocClick);
+    startAutoRefresh();
+  });
+
+  onDestroy(() => {
+    stopAutoRefresh();
+    document.removeEventListener('click', handleDocClick);
+  });
 
   let filteredList = $derived(
     (() => {
@@ -130,6 +212,29 @@
       </button>
     </div>
     <div class="action-controls">
+      <!-- 컬럼 선택 버튼 (기능 5) -->
+      <div class="column-menu-wrap">
+        <button class="refresh-btn" onclick={toggleColumnMenu} title="표시할 컬럼 선택">
+          ⚙️ 컬럼
+        </button>
+        {#if showColumnMenu}
+          <div class="column-dropdown">
+            <p class="dropdown-title">표시할 컬럼</p>
+            <label class="dropdown-item">
+              <input type="checkbox" checked={columnPrefs.trading_value} onchange={() => toggleColumn('trading_value')} />
+              거래대금
+            </label>
+            <label class="dropdown-item">
+              <input type="checkbox" checked={columnPrefs.prev_close} onchange={() => toggleColumn('prev_close')} />
+              전일종가
+            </label>
+            <label class="dropdown-item">
+              <input type="checkbox" checked={columnPrefs.change_amount} onchange={() => toggleColumn('change_amount')} />
+              등락액
+            </label>
+          </div>
+        {/if}
+      </div>
       <button class="refresh-btn" onclick={onRefresh} disabled={$etfListLoading} title="ETF 목록 새로고침">
         {#if $etfListLoading}🔄 불러오는 중...{:else}🔄 새로고침{/if}
       </button>
@@ -163,6 +268,15 @@
             <th class="num-col">현재가</th>
             <th class="num-col">등락률</th>
             <th class="num-col">거래량</th>
+            {#if columnPrefs.trading_value}
+              <th class="num-col">거래대금</th>
+            {/if}
+            {#if columnPrefs.prev_close}
+              <th class="num-col">전일종가</th>
+            {/if}
+            {#if columnPrefs.change_amount}
+              <th class="num-col">등락액</th>
+            {/if}
           </tr>
         </thead>
         <tbody>
@@ -171,6 +285,7 @@
               class="grid-row"
               class:is-favorite={favoriteTickers.has(item.ticker)}
               class:is-selected={$selectedTicker === item.ticker}
+              class:has-position={positionTickers.has(item.ticker)}
               onclick={() => onSelectRow(item)}
             >
               <td class="fav-cell">
@@ -190,6 +305,17 @@
                 {formatPct(item.change_pct)}
               </td>
               <td class="num-cell">{formatPrice(item.volume)}</td>
+              {#if columnPrefs.trading_value}
+                <td class="num-cell">{formatPrice(item.trading_value)}</td>
+              {/if}
+              {#if columnPrefs.prev_close}
+                <td class="num-cell">{formatPrice(item.prev_close)}</td>
+              {/if}
+              {#if columnPrefs.change_amount}
+                <td class="num-cell" style="color: {colorForChange(item.change_amount)}">
+                  {item.change_amount >= 0 ? '+' : ''}{formatPrice(item.change_amount)}
+                </td>
+              {/if}
             </tr>
           {/each}
         </tbody>
@@ -200,6 +326,7 @@
       <span class="count-info">
         총 {filteredList.length}개
         {#if favoriteTickers.size > 0} · 즐겨찾기 {filteredList.filter((i: EtfListItem) => favoriteTickers.has(i.ticker)).length}개{/if}
+        {#if positionTickers.size > 0} · 포지션 {filteredList.filter((i: EtfListItem) => positionTickers.has(i.ticker)).length}개{/if}
       </span>
     </div>
   {/if}
@@ -274,6 +401,7 @@
   .action-controls {
     display: flex;
     gap: 6px;
+    align-items: center;
   }
   .refresh-btn {
     background: var(--surface-3);
@@ -290,6 +418,43 @@
   .refresh-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+  /* === 컬럼 선택 드롭다운 (기능 5) === */
+  .column-menu-wrap {
+    position: relative;
+  }
+  .column-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: 10px 12px;
+    z-index: 100;
+    min-width: 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .dropdown-title {
+    margin: 0 0 4px 0;
+    font-size: calc(0.82rem * var(--font-scale));
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: calc(0.85rem * var(--font-scale));
+    color: var(--text);
+    cursor: pointer;
+    user-select: none;
+  }
+  .dropdown-item input[type="checkbox"] {
+    cursor: pointer;
   }
   .state-message {
     text-align: center;
@@ -390,6 +555,10 @@
   }
   .grid-row.is-favorite:hover {
     background: var(--accent-bg-hover);
+  }
+  /* 포지션 하이라이트 (기능 6) — 좌측 보더로 구분 */
+  .grid-row.has-position {
+    border-left: 3px solid var(--accent);
   }
   .grid-row.is-selected {
     background: var(--surface-selected, var(--accent-bg));

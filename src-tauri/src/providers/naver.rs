@@ -218,12 +218,25 @@ impl NaverProvider {
                 let current_price = Self::json_f64(item, &["nowVal", "nowValue", "nav"]);
                 let change_pct = Self::json_f64(item, &["changeRate", "fluctuationsRatio", "rate"]);
                 let volume = Self::json_u64(item, &["quant", "accumulatedTradingVolume", "volume"]);
+                // 전일종가: 네이버 JSON API의 "prevVal" 또는 유사 필드
+                let prev_close = Self::json_f64(item, &["prevVal", "prevValue", "prevClose"]);
+                // 등락액: 현재가 - 전일종가 (API에 "changeAmount" 등이 있을 수 있지만 계산이 안전)
+                let change_amount = if current_price > 0.0 && prev_close > 0.0 {
+                    current_price - prev_close
+                } else {
+                    Self::json_f64(item, &["changeAmount", "changeAmt", "diff"])
+                };
+                // 거래대금: 네이버 JSON API의 "valueTr", "amountTr" 등
+                let trading_value = Self::json_u64(item, &["valueTr", "amountTr", "tradingValue", "trValue"]);
                 Some(EtfListItem {
                     ticker,
                     name,
                     current_price,
                     change_pct,
                     volume,
+                    prev_close,
+                    change_amount,
+                    trading_value,
                 })
             })
             .collect();
@@ -302,6 +315,15 @@ impl NaverProvider {
                 &tds.get(1).map(|c| c.text().collect::<String>()).unwrap_or_default(),
             );
 
+            // 전일비 (컬럼 인덱스 2) — 등락액
+            let change_amount = tds
+                .get(2)
+                .map(|c| {
+                    let txt = c.text().collect::<String>();
+                    Self::parse_signed_num(&txt)
+                })
+                .unwrap_or(0.0);
+
             // 등락률 (컬럼 인덱스 3 — 전일비 2, 등락률 3)
             let change_pct = tds
                 .get(3)
@@ -317,12 +339,24 @@ impl NaverProvider {
                 .map(|c| Self::parse_num(&c.text().collect::<String>()) as u64)
                 .unwrap_or(0);
 
+            // 거래대금 (컬럼 인덱스 5)
+            let trading_value = tds
+                .get(5)
+                .map(|c| Self::parse_num(&c.text().collect::<String>()) as u64)
+                .unwrap_or(0);
+
+            // 전일종가 = 현재가 - 등락액
+            let prev_close = current_price - change_amount;
+
             items.push(EtfListItem {
                 ticker,
                 name,
                 current_price,
                 change_pct,
                 volume,
+                prev_close,
+                change_amount,
+                trading_value,
             });
         }
 

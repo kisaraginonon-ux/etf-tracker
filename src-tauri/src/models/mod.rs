@@ -71,6 +71,9 @@ pub struct EtfListItem {
     pub current_price: f64,   // 현재가
     pub change_pct: f64,      // 등락률 (%)
     pub volume: u64,          // 거래량
+    pub prev_close: f64,      // 전일종가
+    pub change_amount: f64,   // 등락액 (현재가 - 전일종가)
+    pub trading_value: u64,   // 거래대금
 }
 
 /// 기간별 등락률

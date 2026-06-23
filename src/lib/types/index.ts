@@ -80,6 +80,9 @@ export interface EtfListItem {
   current_price: number;
   change_pct: number;
   volume: number;
+  prev_close: number;
+  change_amount: number;
+  trading_value: number;
 }
 
 export interface PeriodReturn {

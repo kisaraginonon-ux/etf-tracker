@@ -8,6 +8,7 @@
   import EtfDetailPanel from '$lib/components/EtfDetailPanel.svelte';
   import EtfGrid from '$lib/components/EtfGrid.svelte';
   import AlertSettings from '$lib/components/AlertSettings.svelte';
+  import PositionSummary from '$lib/components/PositionSummary.svelte';
   import ProviderBanner from '$lib/components/ProviderBanner.svelte';
   import DisclaimerModal from '$lib/components/DisclaimerModal.svelte';
   import { favorites, loadFavorites, loadPositions, loadAlerts, refreshMarketState, refreshPollingStatus, refreshProviderStatus, loadEtfList, etfList, exportCsvAction } from '$lib/stores';
@@ -15,7 +16,7 @@
   import { save } from '@tauri-apps/plugin-dialog';
 
   let exportStatus = $state<'idle' | 'exporting' | 'done' | 'error'>('idle');
-  let rightTab = $state<'quotes' | 'alerts'>('quotes');
+  let rightTab = $state<'quotes' | 'positions' | 'alerts'>('quotes');
 
   onMount(() => {
     loadThemeSettings();
@@ -97,6 +98,9 @@
           <button class="tab-btn" class:active={rightTab === 'quotes'} onclick={() => rightTab = 'quotes'}>
             📈 전체 ETF 그리드
           </button>
+          <button class="tab-btn" class:active={rightTab === 'positions'} onclick={() => rightTab = 'positions'}>
+            📊 포지션
+          </button>
           <button class="tab-btn" class:active={rightTab === 'alerts'} onclick={() => rightTab = 'alerts'}>
             🔔 가격 알림
           </button>
@@ -104,6 +108,8 @@
         <div class="tab-content">
           {#if rightTab === 'quotes'}
             <EtfGrid />
+          {:else if rightTab === 'positions'}
+            <PositionSummary />
           {:else}
             <AlertSettings />
           {/if}
