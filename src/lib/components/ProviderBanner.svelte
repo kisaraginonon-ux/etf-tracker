@@ -23,14 +23,14 @@
     align-items: center;
     gap: 8px;
     padding: 8px 16px;
-    background: rgba(255, 152, 0, 0.12);
-    border: 1px solid rgba(255, 152, 0, 0.3);
+    background: var(--warning-bg);
+    border: 1px solid var(--warning-border);
     border-radius: 6px;
     margin-bottom: 12px;
-    font-size: 0.85rem;
-    color: #ffb74d;
+    font-size: calc(0.85rem * var(--font-scale));
+    color: var(--warning-text);
   }
-  .banner-icon { font-size: 1rem; flex-shrink: 0; }
+  .banner-icon { font-size: calc(1rem * var(--font-scale)); flex-shrink: 0; }
   .banner-text { line-height: 1.4; }
-  .banner-text strong { color: #ff9800; }
+  .banner-text strong { color: var(--warning); }
 </style>

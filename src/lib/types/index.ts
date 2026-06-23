@@ -74,6 +74,14 @@ export interface MarketIndex {
   change_pct: number;
 }
 
+export interface EtfListItem {
+  ticker: string;
+  name: string;
+  current_price: number;
+  change_pct: number;
+  volume: number;
+}
+
 export interface QuoteRow {
   ticker: string;
   name: string;

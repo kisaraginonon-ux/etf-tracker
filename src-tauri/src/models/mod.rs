@@ -63,6 +63,16 @@ pub struct EtfMasterItem {
     pub is_active: bool,      // 상장 상태
 }
 
+/// 네이버 전체 ETF 목록 스크래핑 결과 항목
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EtfListItem {
+    pub ticker: String,       // 6자리 종목코드
+    pub name: String,         // 종목명
+    pub current_price: f64,   // 현재가
+    pub change_pct: f64,      // 등락률 (%)
+    pub volume: u64,          // 거래량
+}
+
 /// 모멘텀 시그널
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MomentumSignal {

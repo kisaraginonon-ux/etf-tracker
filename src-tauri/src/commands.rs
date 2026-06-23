@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::calendar::{MarketCalendar, MarketState};
 use crate::db::Database;
-use crate::models::{EtfMasterItem, Favorite};
+use crate::models::{EtfMasterItem, EtfListItem, Favorite, NormalizedQuote};
 use crate::providers::{NaverProvider, YahooProvider, ProviderManager};
 
 /// ETF 마스터 JSON 로드
@@ -255,10 +255,10 @@ pub struct ProviderStatus {
 
 /// Provider 전환 상태 조회 (REQ-F-19)
 #[tauri::command]
-pub fn get_provider_status(
-    provider_mgr: State<'_, Mutex<ProviderManager>>,
+pub async fn get_provider_status(
+    provider_mgr: State<'_, tokio::sync::Mutex<ProviderManager>>,
 ) -> Result<ProviderStatus, String> {
-    let mgr = provider_mgr.lock().map_err(|e| e.to_string())?;
+    let mgr = provider_mgr.lock().await;
     Ok(ProviderStatus {
         active_provider: mgr.active_provider().to_string(),
         is_using_fallback: mgr.is_using_fallback(),
@@ -401,4 +401,37 @@ pub fn export_csv(
 /// CSV 필드 이스케이프 (큰따옴표 포함 시 두 번 반복)
 fn csv_escape(s: &str) -> String {
     s.replace('"', "\"\"")
+}
+
+// === Naver ETF List & Manual Quote (REQ-F-17 확장) ===
+
+/// 네이버 전체 ETF 목록 스크래핑 (sise_market_sum.naver?menu=etf)
+/// 폴링 상태와 무관하게 전체 ETF 종목 리스트를 조회한다.
+#[tauri::command]
+pub async fn fetch_naver_etf_list(
+    provider_mgr: State<'_, tokio::sync::Mutex<ProviderManager>>,
+) -> Result<Vec<EtfListItem>, String> {
+    // tokio::sync::Mutex guard는 Send이므로 await across lock 안전
+    let mut mgr = provider_mgr.lock().await;
+    match mgr.fetch_etf_list().await {
+        Ok(items) => Ok(items),
+        Err(e) => {
+            tracing::warn!("fetch_naver_etf_list failed: {}", e);
+            // 실패 시 빈 벡터 반환 (에러 메시지와 함께)
+            Ok(Vec::new())
+        }
+    }
+}
+
+/// 수동 즉시 시세 조회 — 장 마감/휴장일에도 동작
+/// 폴링 상태와 무관하게 ProviderManager를 통해 즉시 시세를 가져온다.
+#[tauri::command]
+pub async fn fetch_quote_now(
+    provider_mgr: State<'_, tokio::sync::Mutex<ProviderManager>>,
+    ticker: String,
+) -> Result<NormalizedQuote, String> {
+    let mut mgr = provider_mgr.lock().await;
+    mgr.fetch_quote(&ticker)
+        .await
+        .map_err(|e| e.to_string())
 }

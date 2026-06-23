@@ -218,7 +218,7 @@ export async function exportCsvAction(filePath: string): Promise<string | null> 
 }
 
 // === Provider Status (REQ-F-19) ===
-import type { ProviderStatus } from '$lib/types';
+import type { ProviderStatus, EtfListItem, NormalizedQuote } from '$lib/types';
 
 export const providerStatus = writable<ProviderStatus | null>(null);
 
@@ -228,6 +228,41 @@ export async function refreshProviderStatus() {
     providerStatus.set(status);
   } catch (e) {
     console.error('Failed to get provider status:', e);
+  }
+}
+
+// === Naver ETF List (전체 ETF 목록 스크래핑) ===
+export const etfList = writable<EtfListItem[]>([]);
+export const etfListLoading = writable(false);
+
+export async function loadEtfList() {
+  etfListLoading.set(true);
+  try {
+    const result = await api.fetchNaverEtfList();
+    etfList.set(result);
+  } catch (e) {
+    console.error('Failed to load ETF list:', e);
+    etfList.set([]);
+  } finally {
+    etfListLoading.set(false);
+  }
+}
+
+// === Manual Quote Fetch (장 마감 후에도 수동 조회) ===
+export const manualQuotes = writable<Map<string, NormalizedQuote>>(new Map());
+
+export async function fetchQuoteNowAction(ticker: string): Promise<NormalizedQuote | null> {
+  try {
+    const quote = await api.fetchQuoteNow(ticker);
+    manualQuotes.update(map => {
+      const newMap = new Map(map);
+      newMap.set(ticker, quote);
+      return newMap;
+    });
+    return quote;
+  } catch (e) {
+    console.error('Failed to fetch quote for', ticker, e);
+    return null;
   }
 }
 
@@ -243,14 +278,14 @@ export const marketStateLabel = derived(marketState, ($state) => {
   return labels[$state] || $state;
 });
 
-// === Derived: market state color ===
+// === Derived: market state color (CSS 변수 기반 — 테마 대응) ===
 export const marketStateColor = derived(marketState, ($state) => {
   const colors: Record<MarketState, string> = {
-    pre_open: '#888',
-    regular: '#4caf50',
-    closed: '#666',
-    holiday: '#f44336',
-    unknown: '#888',
+    pre_open: 'var(--text-muted)',
+    regular: 'var(--status-live)',
+    closed: 'var(--text-dim)',
+    holiday: 'var(--status-error)',
+    unknown: 'var(--text-muted)',
   };
-  return colors[$state] || '#888';
+  return colors[$state] || 'var(--text-muted)';
 });

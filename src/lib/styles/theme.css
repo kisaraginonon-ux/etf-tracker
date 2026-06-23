@@ -1,0 +1,146 @@
+/* ETF Tracker — Theme CSS variables system
+ * 다크 / 라이트 / 고대비 3테마 + 글씨 크기 조절 (--font-scale)
+ * 한국식 색상: 상승 빨강 / 하락 파랑 (모든 테마 공통)
+ */
+
+/* === 기본 변수 (모든 테마 공통) === */
+:root {
+  /* 한국식 시장 색상 — 테마 무관 */
+  --color-up: #ef5350;        /* 상승 빨강 */
+  --color-down: #26a69a;      /* 하락 파랑 */
+  --color-flat: #888;         /* 보합 회색 */
+
+  /* 상태 배지 색상 — 테마 무관 의미 색상 */
+  --status-live: #4caf50;
+  --status-stale: #ff9800;
+  --status-closed: #888;
+  --status-pre: #666;
+  --status-error: #f44336;
+
+  /* 폰트 크기 배율 (기본 보통) */
+  --font-scale: 1.0;
+
+  /* 폰트 패밀리 */
+  --font-family: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'SF Mono', 'Menlo', monospace;
+}
+
+/* === 다크 테마 (기본) === */
+:root,
+[data-theme='dark'] {
+  --bg: #15151e;
+  --surface: #1e1e2e;
+  --surface-2: #252535;
+  --surface-3: #2a2a3a;
+  --surface-hover: #3a3a4a;
+  --surface-input: #2a2a3a;
+  --text: #e0e0e0;
+  --text-secondary: #aaa;
+  --text-muted: #888;
+  --text-dim: #666;
+  --border: #333;
+  --border-soft: #252535;
+  --border-strong: #444;
+  --accent: #6366f1;
+  --accent-hover: #5457e5;
+  --accent-light: #818cf8;
+  --accent-bg: #2a2a4a;
+  --accent-bg-hover: #31314a;
+  --accent-border: #6366f1;
+  --danger: #f44336;
+  --warning: #ff9800;
+  --warning-bg: rgba(255, 152, 0, 0.12);
+  --warning-border: rgba(255, 152, 0, 0.3);
+  --warning-text: #ffb74d;
+  --success: #4caf50;
+  --overlay: rgba(0, 0, 0, 0.7);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --row-hover: rgba(99, 102, 241, 0.05);
+  --scrollbar-track: #1e1e2e;
+  --scrollbar-thumb: #333;
+  --scrollbar-thumb-hover: #444;
+  --remove-hover-bg: rgba(244, 67, 54, 0.1);
+  --target-bg: rgba(239, 83, 80, 0.15);
+  --stop-bg: rgba(38, 166, 154, 0.15);
+}
+
+/* === 라이트 테마 === */
+[data-theme='light'] {
+  --bg: #f5f5f5;
+  --surface: #ffffff;
+  --surface-2: #f0f0f5;
+  --surface-3: #e8e8ee;
+  --surface-hover: #e0e0e8;
+  --surface-input: #ffffff;
+  --text: #333333;
+  --text-secondary: #555;
+  --text-muted: #777;
+  --text-dim: #999;
+  --border: #d0d0d8;
+  --border-soft: #e8e8ee;
+  --border-strong: #b0b0bc;
+  --accent: #5457e5;
+  --accent-hover: #4548d0;
+  --accent-light: #6366f1;
+  --accent-bg: #e8e8ff;
+  --accent-bg-hover: #d8d8f5;
+  --accent-border: #6366f1;
+  --danger: #d32f2f;
+  --warning: #f57c00;
+  --warning-bg: rgba(245, 124, 0, 0.12);
+  --warning-border: rgba(245, 124, 0, 0.3);
+  --warning-text: #e65100;
+  --success: #388e3c;
+  --overlay: rgba(0, 0, 0, 0.5);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  --row-hover: rgba(99, 102, 241, 0.08);
+  --scrollbar-track: #f0f0f5;
+  --scrollbar-thumb: #c0c0c8;
+  --scrollbar-thumb-hover: #a0a0ac;
+  --remove-hover-bg: rgba(211, 47, 47, 0.1);
+  --target-bg: rgba(239, 83, 80, 0.12);
+  --stop-bg: rgba(38, 166, 154, 0.12);
+}
+
+/* === 고대비 테마 === */
+[data-theme='high-contrast'] {
+  --bg: #000000;
+  --surface: #1a1a1a;
+  --surface-2: #222;
+  --surface-3: #2a2a2a;
+  --surface-hover: #3a3a3a;
+  --surface-input: #1a1a1a;
+  --text: #ffffff;
+  --text-secondary: #e0e0e0;
+  --text-muted: #bbb;
+  --text-dim: #888;
+  --border: #555;
+  --border-soft: #333;
+  --border-strong: #888;
+  --accent: #ffeb3b;
+  --accent-hover: #fdd835;
+  --accent-light: #fff176;
+  --accent-bg: #3a3a00;
+  --accent-bg-hover: #4a4a00;
+  --accent-border: #ffeb3b;
+  --danger: #ff5252;
+  --warning: #ffab40;
+  --warning-bg: rgba(255, 171, 64, 0.18);
+  --warning-border: rgba(255, 171, 64, 0.5);
+  --warning-text: #ffcc80;
+  --success: #69f0ae;
+  --overlay: rgba(0, 0, 0, 0.85);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+  --row-hover: rgba(255, 235, 59, 0.1);
+  --scrollbar-track: #1a1a1a;
+  --scrollbar-thumb: #666;
+  --scrollbar-thumb-hover: #888;
+  --remove-hover-bg: rgba(255, 82, 82, 0.2);
+  --target-bg: rgba(255, 82, 82, 0.2);
+  --stop-bg: rgba(38, 166, 154, 0.2);
+}
+
+/* === 글씨 크기 단계 (data-font-scale 속성) === */
+[data-font-scale='small']  { --font-scale: 0.9; }
+[data-font-scale='normal'] { --font-scale: 1.0; }
+[data-font-scale='large']  { --font-scale: 1.15; }

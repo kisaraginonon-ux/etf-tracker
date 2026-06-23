@@ -11,7 +11,7 @@ pub use yahoo::YahooProvider;
 use async_trait::async_trait;
 use anyhow::Result;
 
-use crate::models::{NormalizedQuote, IntradayPoint, ProviderName};
+use crate::models::{NormalizedQuote, IntradayPoint, ProviderName, EtfListItem};
 
 /// Provider Trait — 모든 데이터 프로바이더가 구현해야 하는 인터페이스
 #[async_trait]
@@ -23,6 +23,11 @@ pub trait DataProvider: Send + Sync {
     async fn health_check(&self) -> Result<bool>;
     fn name(&self) -> &str;
     fn provider_name(&self) -> ProviderName;
+
+    /// 네이버 전체 ETF 목록 스크래핑 — NaverProvider만 구현, 기본은 빈 벡터
+    async fn fetch_etf_list(&self) -> Result<Vec<EtfListItem>> {
+        Ok(Vec::new())
+    }
 }
 
 /// Provider 오류
@@ -124,6 +129,21 @@ impl ProviderManager {
             }
         } else {
             self.fallback.fetch_quote(ticker).await
+        }
+    }
+
+    /// 네이버 전체 ETF 목록 스크래핑 (Primary Provider 위임)
+    /// NaverProvider의 fetch_etf_list를 호출. Fallback(Yahoo)은 ETF 목록 기능이 없으므로
+    /// Primary가 Naver일 때만 정상 동작하며, 실패 시 빈 벡터 반환.
+    pub async fn fetch_etf_list(&mut self) -> Result<Vec<EtfListItem>> {
+        // Primary가 Naver인 경우에만 시도 — fallback 전환 중에도 primary로 시도
+        match self.primary.fetch_etf_list().await {
+            Ok(items) => Ok(items),
+            Err(e) => {
+                tracing::warn!("Primary fetch_etf_list failed: {}", e);
+                // Fallback은 ETF 목록 스크래핑을 지원하지 않으므로 빈 벡터 반환
+                Ok(Vec::new())
+            }
         }
     }
 }

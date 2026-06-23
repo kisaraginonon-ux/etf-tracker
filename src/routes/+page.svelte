@@ -1,24 +1,25 @@
 // ETF Tracker — Main Page
-// 다크 테마 대시보드: MarketBar + SearchPanel + PositionPanel + AlertSettings + QuoteGrid
+// 토글 없이 한눈에 보이는 대시보드: MarketBar + 좌우 분할 (EtfList/Position | QuoteGrid/Alerts)
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import '$lib/styles/theme.css';
   import MarketBar from '$lib/components/MarketBar.svelte';
-  import SearchPanel from '$lib/components/SearchPanel.svelte';
+  import EtfListPanel from '$lib/components/EtfListPanel.svelte';
   import PositionPanel from '$lib/components/PositionPanel.svelte';
   import AlertSettings from '$lib/components/AlertSettings.svelte';
   import QuoteGrid from '$lib/components/QuoteGrid.svelte';
   import ProviderBanner from '$lib/components/ProviderBanner.svelte';
   import DisclaimerModal from '$lib/components/DisclaimerModal.svelte';
   import { favorites, loadFavorites, loadPositions, loadAlerts, refreshMarketState, refreshPollingStatus, refreshProviderStatus, exportCsvAction } from '$lib/stores';
+  import { loadThemeSettings } from '$lib/stores/theme';
   import { save } from '@tauri-apps/plugin-dialog';
 
-  let showSearch = $state(true);
-  let showPositions = $state(false);
-  let showAlerts = $state(false);
   let exportStatus = $state<'idle' | 'exporting' | 'done' | 'error'>('idle');
+  let rightTab = $state<'quotes' | 'alerts'>('quotes');
 
   onMount(() => {
+    loadThemeSettings();
     loadFavorites();
     loadPositions();
     loadAlerts();
@@ -48,8 +49,6 @@
       const result = await exportCsvAction(filePath);
       if (result !== null) {
         exportStatus = 'done';
-        // 파일이 저장된 폴더 열기
-        // (선택적: 저장된 파일 경로 표시)
         setTimeout(() => { exportStatus = 'idle'; }, 3000);
       } else {
         exportStatus = 'error';
@@ -68,45 +67,48 @@
 
   <main class="main-content">
     <ProviderBanner />
+
     <div class="toolbar">
-      <div class="toolbar-left">
-        <button class="toggle-btn" onclick={() => showSearch = !showSearch}>
-          {showSearch ? '🔍 검색 숨기기' : '🔍 종목 검색'}
-        </button>
-        <button class="toggle-btn" onclick={() => showPositions = !showPositions}>
-          {showPositions ? '📊 포지션 숨기기' : '📊 가상 포지션'}
-        </button>
-        <button class="toggle-btn" onclick={() => showAlerts = !showAlerts}>
-          {showAlerts ? '🔔 알림 숨기기' : '🔔 가격 알림'}
-        </button>
-        <button class="toggle-btn export-btn" onclick={handleExportCsv} disabled={exportStatus === 'exporting'}>
-          {#if exportStatus === 'exporting'}
-            ⏳ 내보내는 중...
-          {:else if exportStatus === 'done'}
-            ✅ 내보내기 완료!
-          {:else if exportStatus === 'error'}
-            ❌ 내보내기 실패
-          {:else}
-            📥 CSV 내보내기
-          {/if}
-        </button>
-      </div>
       <span class="disclaimer">본 데이터는 투자 참고용이며 오류 가능성이 있습니다</span>
+      <button class="export-btn" onclick={handleExportCsv} disabled={exportStatus === 'exporting'}>
+        {#if exportStatus === 'exporting'}
+          ⏳ 내보내는 중...
+        {:else if exportStatus === 'done'}
+          ✅ 내보내기 완료!
+        {:else if exportStatus === 'error'}
+          ❌ 내보내기 실패
+        {:else}
+          📥 CSV 내보내기
+        {/if}
+      </button>
     </div>
 
-    {#if showSearch}
-      <SearchPanel />
-    {/if}
+    <div class="split-layout">
+      <!-- 좌측 (40%): ETF 전체 목록 + 가상 포지션 -->
+      <section class="left-pane">
+        <EtfListPanel />
+        <PositionPanel />
+      </section>
 
-    {#if showPositions}
-      <PositionPanel />
-    {/if}
-
-    {#if showAlerts}
-      <AlertSettings />
-    {/if}
-
-    <QuoteGrid favorites={$favorites} />
+      <!-- 우측 (60%): 시세 그리드 + 알림 설정 (탭) -->
+      <section class="right-pane">
+        <div class="tab-bar">
+          <button class="tab-btn" class:active={rightTab === 'quotes'} onclick={() => rightTab = 'quotes'}>
+            📈 시세 그리드
+          </button>
+          <button class="tab-btn" class:active={rightTab === 'alerts'} onclick={() => rightTab = 'alerts'}>
+            🔔 가격 알림
+          </button>
+        </div>
+        <div class="tab-content">
+          {#if rightTab === 'quotes'}
+            <QuoteGrid favorites={$favorites} />
+          {:else}
+            <AlertSettings />
+          {/if}
+        </div>
+      </section>
+    </div>
   </main>
 </div>
 
@@ -116,15 +118,15 @@
   :global(body) {
     margin: 0;
     padding: 0;
-    font-family: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: #15151e;
-    color: #e0e0e0;
+    font-family: var(--font-family);
+    background: var(--bg);
+    color: var(--text);
   }
   :global(*) { box-sizing: border-box; }
   :global(::-webkit-scrollbar) { width: 8px; height: 8px; }
-  :global(::-webkit-scrollbar-track) { background: #1e1e2e; }
-  :global(::-webkit-scrollbar-thumb) { background: #333; border-radius: 4px; }
-  :global(::-webkit-scrollbar-thumb:hover) { background: #444; }
+  :global(::-webkit-scrollbar-track) { background: var(--scrollbar-track); }
+  :global(::-webkit-scrollbar-thumb) { background: var(--scrollbar-thumb); border-radius: 4px; }
+  :global(::-webkit-scrollbar-thumb:hover) { background: var(--scrollbar-thumb-hover); }
 
   .app {
     display: flex;
@@ -136,24 +138,87 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 16px 20px;
+    padding: 12px 16px;
     overflow: hidden;
+    font-size: calc(0.95rem * var(--font-scale));
+    gap: 8px;
   }
   .toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 12px;
+    margin-bottom: 4px;
   }
-  .toolbar-left { display: flex; gap: 8px; flex-wrap: wrap; }
-  .toggle-btn {
-    background: #2a2a3a; color: #6366f1; border: 1px solid #333;
-    border-radius: 6px; padding: 6px 14px; cursor: pointer;
-    font-size: 0.85rem; font-weight: 500;
+  .disclaimer {
+    font-size: calc(0.75rem * var(--font-scale));
+    color: var(--text-dim);
   }
-  .toggle-btn:hover { background: #3a3a4a; }
-  .export-btn { border-color: #6366f1; color: #818cf8; }
-  .export-btn:hover { background: #31314a; }
-  .export-btn:disabled { opacity: 0.5; cursor: wait; }
-  .disclaimer { font-size: 0.75rem; color: #666; }
+  .export-btn {
+    background: var(--accent-bg);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    border-radius: 6px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: calc(0.85rem * var(--font-scale));
+    font-weight: 500;
+  }
+  .export-btn:hover:not(:disabled) {
+    background: var(--accent-bg-hover);
+  }
+  .export-btn:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+  .split-layout {
+    flex: 1;
+    display: flex;
+    gap: 12px;
+    overflow: hidden;
+  }
+  .left-pane {
+    width: 40%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .right-pane {
+    width: 60%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+  }
+  .tab-btn {
+    background: var(--surface-3);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 6px 6px 0 0;
+    padding: 6px 16px;
+    cursor: pointer;
+    font-size: calc(0.88rem * var(--font-scale));
+    font-weight: 500;
+  }
+  .tab-btn:hover {
+    background: var(--surface-hover);
+  }
+  .tab-btn.active {
+    background: var(--accent);
+    color: var(--text);
+    border-color: var(--accent-border);
+  }
+  .tab-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
 </style>

@@ -5,6 +5,33 @@
     <link rel="icon" href="%sveltekit.assets%/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ETF Tracker</title>
+    <script>
+      // FOUC 방지: 렌더링 전 저장된 테마/글씨크기를 즉시 적용
+      // Tauri invoke는 아직 사용 불가 (DOMContentLoaded 이후)하므로
+      // localStorage fallback으로 가장 최근 값을 사용
+      (function () {
+        try {
+          var t = localStorage.getItem('etf-theme');
+          if (t === 'dark' || t === 'light' || t === 'high-contrast') {
+            document.documentElement.setAttribute('data-theme', t);
+          } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+        try {
+          var s = localStorage.getItem('etf-font-scale');
+          if (s === 'small' || s === 'normal' || s === 'large') {
+            document.documentElement.setAttribute('data-font-scale', s);
+          } else {
+            document.documentElement.setAttribute('data-font-scale', 'normal');
+          }
+        } catch (e) {
+          document.documentElement.setAttribute('data-font-scale', 'normal');
+        }
+      })();
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">

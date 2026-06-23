@@ -53,11 +53,12 @@ pub fn run() {
             app.manage(Mutex::new(market_cal));
 
             // Provider Manager 초기화 (Naver Primary, Yahoo Fallback)
+            // tokio::sync::Mutex 사용 — async 명령에서 await across lock 필요 (Send guard)
             let provider_manager = ProviderManager::new(
                 Box::new(NaverProvider::new()),
                 Box::new(YahooProvider::new()),
             );
-            app.manage(Mutex::new(provider_manager));
+            app.manage(tokio::sync::Mutex::new(provider_manager));
 
             // Polling Manager 초기화
             let polling_cal = MarketCalendar::new();
@@ -99,6 +100,9 @@ pub fn run() {
             // Settings
             commands::get_setting,
             commands::set_setting,
+            // Naver ETF List & Manual Quote
+            commands::fetch_naver_etf_list,
+            commands::fetch_quote_now,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ETF Tracker");

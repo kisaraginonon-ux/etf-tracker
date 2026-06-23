@@ -5,7 +5,9 @@ import { invoke } from '@tauri-apps/api/core';
 import type {
   MarketState,
   EtfMasterItem,
+  EtfListItem,
   Favorite,
+  NormalizedQuote,
   PollingStatus,
   ProviderStatus,
 } from '$lib/types';
@@ -105,4 +107,14 @@ export async function exportCsv(filePath: string): Promise<string> {
 // === Provider Status (REQ-F-19) ===
 export async function getProviderStatus(): Promise<ProviderStatus> {
   return invoke<ProviderStatus>('get_provider_status');
+}
+
+// === Naver ETF List ===
+export async function fetchNaverEtfList(): Promise<EtfListItem[]> {
+  return invoke<EtfListItem[]>('fetch_naver_etf_list');
+}
+
+// === Manual Quote Fetch (장 마감 후에도 수동 조회) ===
+export async function fetchQuoteNow(ticker: string): Promise<NormalizedQuote> {
+  return invoke<NormalizedQuote>('fetch_quote_now', { ticker });
 }
