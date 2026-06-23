@@ -136,28 +136,39 @@ impl NaverProvider {
             .and_then(|c| c.get(1).map(|m| m.as_str().to_string()))
     }
 
-    /// 네이버 전체 ETF 목록 스크래핑 (sise_market_sum.naver?menu=etf)
-    /// 여러 페이지를 순회하며 종목코드/종목명/현재가/등락률/거래량 수집
+    /// 네이버 전체 ETF 목록 스크래핑
+    /// 네이버 JSON API 사용 (https://finance.naver.com/api/sise/etfItemList.naver)
+    /// 한 번에 전체 ETF 목록을 JSON으로 반환 — HTML 스크래핑보다 훨씬 빠르고 안정적
     pub async fn fetch_etf_list(&self) -> Result<Vec<EtfListItem>> {
-        let mut items: Vec<EtfListItem> = Vec::new();
-        // 1~10페이지 순회 (페이지당 ~50개)
-        for page in 1..=10u32 {
-            match self.scrape_etf_list_page(page).await {
-                Ok(page_items) => {
-                    let empty = page_items.is_empty();
-                    items.extend(page_items);
-                    if empty {
-                        // 더 이상 데이터 없으면 중단
-                        break;
-                    }
-                }
-                Err(e) => {
-                    tracing::warn!("Naver ETF list page {} failed: {}", page, e);
-                    // 페이지 실패 시 부분 결과라도 반환하며 중단
-                    break;
-                }
-            }
-        }
+        let url = "https://finance.naver.com/api/sise/etfItemList.naver";
+        let resp = self.client.get(url).send().await
+            .context("Failed to fetch Naver ETF list API")?;
+        let json: serde_json::Value = resp.json().await
+            .context("Failed to parse ETF list JSON")?;
+
+        let items = json
+            .get("result")
+            .and_then(|r| r.get("etfItemList"))
+            .and_then(|l| l.as_array())
+            .map(|arr| {
+                arr.iter().filter_map(|item| {
+                    let ticker = item.get("itemcode")?.as_str()?.to_string();
+                    let name = item.get("itemname")?.as_str()?.to_string();
+                    let current_price = item.get("nowVal").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    let change_pct = item.get("changeRate").and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    // risefall: 2=상승, 5=하락, 3=보합 — changeRate에 부호가 이미 있음
+                    let volume = item.get("quant").and_then(|v| v.as_u64()).unwrap_or(0);
+                    Some(EtfListItem {
+                        ticker,
+                        name,
+                        current_price,
+                        change_pct,
+                        volume,
+                    })
+                }).collect()
+            })
+            .unwrap_or_default();
+
         Ok(items)
     }
 
